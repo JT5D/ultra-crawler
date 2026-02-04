@@ -1,6 +1,17 @@
 # 🚀 Ultra-Crawler
 
+> **Hypothesis**: *Once we were blind and worked with 2 hands. Now we see all, far & wide, working collaboratively—humans + AI agents. Get your X-Ray goggles and swarm of assistants ready. This is Jarvis on steroids...*
+
 **High-performance, non-blocking, multi-threaded Node.js crawler with real-time Three.js visualization**
+
+## ⚡ Quick Start
+
+```bash
+./start.sh              # Start visualizer (http://localhost:3000)
+./start.sh fs ~/path    # Crawl folder
+./start.sh web https://  # Crawl website
+```
+
 
 ## Features
 
