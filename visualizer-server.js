@@ -2,16 +2,17 @@
 /**
  * Visualizer Server - Real-time Three.js visualization with live crawling
  * WebSocket for real-time updates, REST API for search
+ *
+ * STREAMING: Uses crawlEvents from crawler.js for real-time node emission
  */
 
 import { createServer } from 'node:http';
 import { readFile, readdir } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
-import { join, extname } from 'node:path';
+import { existsSync, mkdirSync } from 'node:fs';
+import { join, extname, dirname } from 'node:path';
 import { WebSocketServer } from 'ws';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { dirname } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
@@ -21,15 +22,20 @@ const CRAWL_OUTPUT = './crawl-output';
 const MIME = {
   '.html': 'text/html',
   '.js': 'text/javascript',
+  '.mjs': 'text/javascript',
   '.css': 'text/css',
   '.json': 'application/json',
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
+  '.woff2': 'font/woff2',
 };
 
 // In-memory graph cache
 let graphData = null;
 let db = null;
+
+// Active crawl tracking
+let activeCrawl = null;
 
 // Load database
 async function loadDatabase() {
@@ -149,40 +155,92 @@ const clients = new Set();
 
 wss.on('connection', (ws) => {
   clients.add(ws);
-  console.log(`Client connected (${clients.size} total)`);
+  console.log(`📡 Client connected (${clients.size} total)`);
+
+  // Send current stats on connect
+  (async () => {
+    db = db || await loadDatabase();
+    if (db) {
+      const stats = {
+        totalNodes: db.prepare('SELECT COUNT(*) as count FROM nodes').get().count,
+        totalEdges: db.prepare('SELECT COUNT(*) as count FROM edges').get().count,
+      };
+      ws.send(JSON.stringify({ type: 'stats', data: stats }));
+    }
+  })();
 
   ws.on('message', async (data) => {
     try {
       const msg = JSON.parse(data);
 
       if (msg.type === 'crawl') {
-        // Start crawl and stream results
-        const args = ['crawler.js', '--mode', msg.mode];
+        // Prevent multiple concurrent crawls
+        if (activeCrawl) {
+          ws.send(JSON.stringify({ type: 'error', data: 'Crawl already in progress' }));
+          return;
+        }
+
+        // Build crawl command with streaming flag
+        const args = ['crawler.js', '--mode', msg.mode, '--streaming'];
         if (msg.path) args.push('--path', msg.path);
         if (msg.url) args.push('--url', msg.url);
         if (msg.bucket) args.push('--bucket', msg.bucket);
         if (msg.depth) args.push('--depth', String(msg.depth));
 
-        const crawl = spawn('node', args, { cwd: __dirname });
+        console.log(`🚀 Starting crawl: ${args.join(' ')}`);
+        ws.send(JSON.stringify({ type: 'crawl-start', mode: msg.mode }));
 
-        crawl.stdout.on('data', (chunk) => {
-          ws.send(JSON.stringify({ type: 'log', data: chunk.toString() }));
+        activeCrawl = spawn('node', args, { cwd: __dirname });
+
+        activeCrawl.stdout.on('data', (chunk) => {
+          const lines = chunk.toString().split('\n').filter(Boolean);
+          for (const line of lines) {
+            // Parse progress from log output
+            if (line.includes('Processing') || line.includes('Processed')) {
+              broadcast({ type: 'log', data: line });
+            } else if (line.includes('✅')) {
+              broadcast({ type: 'log', data: line });
+            } else {
+              broadcast({ type: 'log', data: line });
+            }
+          }
         });
 
-        crawl.stderr.on('data', (chunk) => {
-          ws.send(JSON.stringify({ type: 'error', data: chunk.toString() }));
+        activeCrawl.stderr.on('data', (chunk) => {
+          broadcast({ type: 'error', data: chunk.toString() });
         });
 
-        crawl.on('close', async (code) => {
+        activeCrawl.on('close', async (code) => {
+          activeCrawl = null;
           graphData = await loadGraph();
           db = await loadDatabase();
-          ws.send(JSON.stringify({
+
+          broadcast({
             type: 'complete',
             success: code === 0,
-            graph: graphData
-          }));
+            stats: graphData?.metadata || {},
+          });
+
+          // Send full graph for final render
+          if (graphData) {
+            broadcast({ type: 'graph', data: graphData });
+          }
         });
       }
+
+      if (msg.type === 'get-graph') {
+        graphData = graphData || await loadGraph();
+        ws.send(JSON.stringify({ type: 'graph', data: graphData }));
+      }
+
+      if (msg.type === 'cancel-crawl') {
+        if (activeCrawl) {
+          activeCrawl.kill('SIGTERM');
+          activeCrawl = null;
+          broadcast({ type: 'cancelled' });
+        }
+      }
+
     } catch (err) {
       ws.send(JSON.stringify({ type: 'error', data: err.message }));
     }
@@ -190,18 +248,28 @@ wss.on('connection', (ws) => {
 
   ws.on('close', () => {
     clients.delete(ws);
+    console.log(`📡 Client disconnected (${clients.size} remaining)`);
   });
 });
 
-// Broadcast to all clients
+// Broadcast to all connected clients
 function broadcast(data) {
   const msg = JSON.stringify(data);
   for (const client of clients) {
-    if (client.readyState === 1) client.send(msg);
+    if (client.readyState === 1) {
+      client.send(msg);
+    }
   }
 }
 
+// Ensure output directory exists
+if (!existsSync(CRAWL_OUTPUT)) {
+  mkdirSync(CRAWL_OUTPUT, { recursive: true });
+}
+
 server.listen(PORT, () => {
-  console.log(`\n🎨 Visualizer running at http://localhost:${PORT}`);
-  console.log(`📡 WebSocket ready for real-time updates\n`);
+  console.log(`\n🎨 Ultra-Crawler Visualizer`);
+  console.log(`   http://localhost:${PORT}`);
+  console.log(`📡 WebSocket ready for real-time streaming\n`);
 });
+

@@ -19,9 +19,31 @@ import { createWriteStream, existsSync, mkdirSync, statSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { pipeline } from 'node:stream/promises';
 import { program } from 'commander';
+import { EventEmitter } from 'node:events';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STREAMING EVENT EMITTER (for real-time WebSocket updates)
+// ═══════════════════════════════════════════════════════════════════════════
+export const crawlEvents = new EventEmitter();
+crawlEvents.setMaxListeners(100); // Support many WebSocket clients
+
+// Emit node discovered event
+export function emitNode(node) {
+  crawlEvents.emit('node', node);
+}
+
+// Emit progress update
+export function emitProgress(current, total, message) {
+  crawlEvents.emit('progress', { current, total, message, percent: total ? Math.round((current / total) * 100) : 0 });
+}
+
+// Emit crawl complete
+export function emitComplete(stats) {
+  crawlEvents.emit('complete', stats);
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CONFIGURATION
@@ -43,6 +65,7 @@ const CONFIG = {
   dbFile: 'crawl.db',
   jsonFile: 'crawl-graph.json',
 };
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 // DATABASE LAYER (SQLite for speed + durability)
@@ -365,9 +388,10 @@ class CrawlDatabase {
 // ═══════════════════════════════════════════════════════════════════════════
 async function crawlFilesystem(rootPath, db, options = {}) {
   const { fdir } = await import('fdir');
-  const { maxDepth = CONFIG.maxDepth } = options;
+  const { maxDepth = CONFIG.maxDepth, streaming = false } = options;
 
   console.log(`🔍 Crawling filesystem: ${rootPath}`);
+  emitProgress(0, 0, `Starting filesystem crawl: ${rootPath}`);
   const startTime = performance.now();
 
   // fdir is the fastest directory crawler for Node.js
@@ -380,22 +404,21 @@ async function crawlFilesystem(rootPath, db, options = {}) {
   const paths = await crawler.withPromise();
 
   console.log(`📊 Found ${paths.length} items in ${((performance.now() - startTime) / 1000).toFixed(2)}s`);
+  emitProgress(0, paths.length, `Found ${paths.length} items, processing...`);
 
   // Build nodes with parent relationships
   const pathToId = new Map();
-  const nodes = [];
-  const edges = [];
-  let id = 1;
+  let processedCount = 0;
 
   // Sort by path length to ensure parents are processed first
   paths.sort((a, b) => a.split('/').length - b.split('/').length);
 
   // Process in batches for memory efficiency
   const BATCH_SIZE = 10000;
+  const EMIT_INTERVAL = streaming ? 100 : 1000; // Emit progress every N items
 
   for (let i = 0; i < paths.length; i += BATCH_SIZE) {
     const batch = paths.slice(i, i + BATCH_SIZE);
-    const batchNodes = [];
 
     for (const fullPath of batch) {
       try {
@@ -418,22 +441,34 @@ async function crawlFilesystem(rootPath, db, options = {}) {
         const nodeId = db.insertNode(node);
         pathToId.set(fullPath, nodeId);
 
+        // Emit streaming event for real-time visualization
+        if (streaming) {
+          emitNode({ ...node, id: nodeId });
+        }
+
         // Create edge to parent
         if (node.parentId) {
           db.insertEdge(node.parentId, nodeId, 'child');
         }
+
+        processedCount++;
       } catch (err) {
         // Skip inaccessible files
       }
     }
 
-    if (i % 50000 === 0) {
-      console.log(`  Processed ${i}/${paths.length} items...`);
+    // Emit progress updates
+    if (i % EMIT_INTERVAL === 0 || i + BATCH_SIZE >= paths.length) {
+      emitProgress(processedCount, paths.length, `Processing files...`);
+      console.log(`  Processed ${processedCount}/${paths.length} items...`);
     }
   }
 
-  console.log(`✅ Filesystem crawl complete: ${db.getStats().nodes} nodes`);
+  const stats = db.getStats();
+  console.log(`✅ Filesystem crawl complete: ${stats.nodes} nodes`);
+  emitComplete(stats);
 }
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 // WEB CRAWLER (Non-blocking concurrent HTTP)
