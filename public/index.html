@@ -113,6 +113,72 @@
       font-size: 0.75rem;
     }
 
+    .voice-btn {
+      position: absolute;
+      right: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .voice-btn:hover {
+      background: rgba(88, 166, 255, 0.2);
+    }
+
+    .voice-btn.listening {
+      background: rgba(247, 129, 102, 0.3);
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        transform: translateY(-50%) scale(1);
+      }
+
+      50% {
+        transform: translateY(-50%) scale(1.1);
+      }
+    }
+
+    .voice-feedback {
+      position: fixed;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface);
+      border: 1px solid var(--accent);
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      z-index: 1000;
+      display: none;
+    }
+
+    .voice-feedback.visible {
+      display: block;
+      animation: fadeIn 0.2s;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+    }
+
     .stats {
       display: flex;
       gap: 16px;
@@ -522,7 +588,10 @@
         <button class="tab" data-view="sunburst3d">3D Sun</button>
         <button class="tab" data-view="graph3d">3D Graph</button>
       </div>
-      <div class="search"><input type="text" id="search" placeholder="Search files... (⌘K)"></div>
+      <div class="search">
+        <input type="text" id="search" placeholder="Search files... (⌘K)">
+        <button id="voice-btn" class="voice-btn" title="Voice Search (V)">🎤</button>
+      </div>
       <div class="stats">
         <span><span class="stat-val" id="s-items">0</span> items</span>
         <span><span class="stat-val" id="s-size">0</span></span>
@@ -1407,6 +1476,135 @@
     resizeCanvas();
     connectWS();
     loadData();
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // VOICE SEARCH (Web Speech API)
+    // ═══════════════════════════════════════════════════════════════════════════
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+    let isListening = false;
+
+    // Create voice feedback element
+    const voiceFeedback = document.createElement('div');
+    voiceFeedback.className = 'voice-feedback';
+    voiceFeedback.id = 'voice-feedback';
+    document.body.appendChild(voiceFeedback);
+
+    function showVoiceFeedback(text, duration = 2000) {
+      voiceFeedback.textContent = text;
+      voiceFeedback.classList.add('visible');
+      setTimeout(() => voiceFeedback.classList.remove('visible'), duration);
+    }
+
+    function parseVoiceCommand(transcript) {
+      const text = transcript.toLowerCase().trim();
+      console.log('🎤 Voice:', text);
+
+      // View switching commands
+      if (text.includes('treemap') && text.includes('3d')) {
+        showVoiceFeedback('🗺️ Switching to 3D Treemap');
+        switchView('treemap3d');
+        return;
+      }
+      if (text.includes('sunburst') && text.includes('3d')) {
+        showVoiceFeedback('☀️ Switching to 3D Sunburst');
+        switchView('sunburst3d');
+        return;
+      }
+      if (text.includes('graph') || text.includes('force')) {
+        showVoiceFeedback('🔗 Switching to 3D Graph');
+        switchView('graph3d');
+        return;
+      }
+      if (text.includes('treemap')) {
+        showVoiceFeedback('📊 Switching to Treemap');
+        switchView('treemap');
+        return;
+      }
+      if (text.includes('sunburst')) {
+        showVoiceFeedback('☀️ Switching to Sunburst');
+        switchView('sunburst');
+        return;
+      }
+      if (text.includes('icicle') || text.includes('flame')) {
+        showVoiceFeedback('❄️ Switching to Icicle');
+        switchView('flame');
+        return;
+      }
+
+      // Search commands
+      if (text.startsWith('search ') || text.startsWith('find ') || text.startsWith('look for ')) {
+        const query = text.replace(/^(search|find|look for)\s+/, '');
+        $('search').value = query;
+        $('search').dispatchEvent(new Event('input'));
+        showVoiceFeedback(`🔍 Searching: ${query}`);
+        return;
+      }
+
+      // Crawl commands
+      if (text.includes('crawl') || text.includes('scan')) {
+        $('crawl-btn').click();
+        showVoiceFeedback('⚡ Starting crawl...');
+        return;
+      }
+
+      // Default: use as search
+      $('search').value = text;
+      $('search').dispatchEvent(new Event('input'));
+      showVoiceFeedback(`🔍 Searching: ${text}`);
+    }
+
+    function startVoice() {
+      if (!SpeechRecognition) {
+        showVoiceFeedback('❌ Voice not supported in this browser');
+        return;
+      }
+
+      if (isListening) {
+        recognition.stop();
+        return;
+      }
+
+      recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        isListening = true;
+        $('voice-btn').classList.add('listening');
+        showVoiceFeedback('🎤 Listening...', 10000);
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        parseVoiceCommand(transcript);
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Voice error:', event.error);
+        showVoiceFeedback(`❌ ${event.error}`);
+      };
+
+      recognition.onend = () => {
+        isListening = false;
+        $('voice-btn').classList.remove('listening');
+      };
+
+      recognition.start();
+    }
+
+    // Voice button click
+    $('voice-btn').addEventListener('click', startVoice);
+
+    // Keyboard shortcut: V for voice
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'v' && !e.metaKey && !e.ctrlKey && document.activeElement.tagName !== 'INPUT') {
+        e.preventDefault();
+        startVoice();
+      }
+    });
+
   </script>
 </body>
 
