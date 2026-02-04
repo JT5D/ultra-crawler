@@ -1,0 +1,33 @@
+{
+    "name": "ultra-crawler",
+    "version": "1.0.0",
+    "description": "High-performance multi-source crawler with Three.js visualization output",
+    "type": "module",
+    "main": "crawler.js",
+    "scripts": {
+        "start": "node crawler.js",
+        "crawl:fs": "node crawler.js --mode=filesystem --path=.",
+        "crawl:web": "node crawler.js --mode=web --url=https://example.com --depth=3",
+        "crawl:s3": "node crawler.js --mode=s3 --bucket=my-bucket",
+        "crawl:gdrive": "node crawler.js --mode=gdrive",
+        "visualize": "node visualizer-server.js"
+    },
+    "dependencies": {
+        "@aws-sdk/client-s3": "^3.750.0",
+        "better-sqlite3": "^11.7.0",
+        "cheerio": "^1.0.0",
+        "commander": "^13.1.0",
+        "fdir": "^6.4.3",
+        "googleapis": "^146.0.0",
+        "p-limit": "^6.2.0",
+        "piscina": "^4.8.0",
+        "undici": "^7.2.3",
+        "ws": "^8.19.0"
+    },
+    "devDependencies": {
+        "@types/better-sqlite3": "^7.6.12"
+    },
+    "engines": {
+        "node": ">=20.0.0"
+    }
+}

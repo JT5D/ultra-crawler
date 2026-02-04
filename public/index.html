@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ultra-Crawler Pro</title>
+  <script src="https://unpkg.com/3d-force-graph@1.73.4/dist/3d-force-graph.min.js"></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --accent: #58a6ff;
+      --accent2: #f78166;
+      --text: #c9d1d9;
+      --dim: #8b949e;
+      --success: #3fb950;
+      --warning: #d29922;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 300px 1fr 280px;
+      grid-template-rows: 50px 1fr;
+      height: 100vh;
+    }
+
+    /* Header */
+    header {
+      grid-column: 1 / -1;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .logo {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 2px;
+      background: var(--bg);
+      padding: 3px;
+      border-radius: 6px;
+    }
+
+    .tab {
+      padding: 6px 14px;
+      border: none;
+      background: transparent;
+      color: var(--dim);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+
+    .tab:hover {
+      color: var(--text);
+    }
+
+    .tab.active {
+      background: var(--accent);
+      color: white;
+    }
+
+    .search {
+      flex: 1;
+      max-width: 350px;
+      position: relative;
+    }
+
+    .search input {
+      width: 100%;
+      padding: 6px 10px 6px 30px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      border-radius: 5px;
+      font-size: 0.85rem;
+    }
+
+    .search::before {
+      content: '🔍';
+      position: absolute;
+      left: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.75rem;
+    }
+
+    .stats {
+      display: flex;
+      gap: 16px;
+      margin-left: auto;
+      font-size: 0.75rem;
+    }
+
+    .stat-val {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 12px;
+      font-size: 0.8rem;
+    }
+
+    .section {
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--dim);
+      margin-bottom: 8px;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .form-row input,
+    .form-row select {
+      flex: 1;
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      border-radius: 4px;
+      font-size: 0.8rem;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 8px;
+      border: none;
+      background: var(--accent);
+      color: white;
+      border-radius: 5px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+
+    .btn:hover {
+      filter: brightness(1.1);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+    }
+
+    .btn-sm {
+      padding: 4px 8px;
+      width: auto;
+      font-size: 0.7rem;
+    }
+
+    /* Filters */
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .filter-chip {
+      padding: 3px 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-size: 0.7rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .filter-chip.active {
+      border-color: var(--accent);
+      background: rgba(88, 166, 255, 0.1);
+    }
+
+    .filter-chip .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    /* File List */
+    .file-list {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .file-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 6px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .file-item:hover {
+      background: rgba(88, 166, 255, 0.1);
+    }
+
+    .file-icon {
+      width: 16px;
+      text-align: center;
+      font-size: 0.7rem;
+    }
+
+    .file-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-size {
+      color: var(--dim);
+      font-size: 0.65rem;
+      font-family: monospace;
+    }
+
+    /* Analytics Panel */
+    .analytics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .metric {
+      background: var(--bg);
+      border-radius: 6px;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .metric-value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .metric-label {
+      font-size: 0.6rem;
+      color: var(--dim);
+      text-transform: uppercase;
+    }
+
+    /* Top Files */
+    .top-file {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .top-file:last-child {
+      border: none;
+    }
+
+    .top-rank {
+      width: 16px;
+      font-size: 0.65rem;
+      color: var(--dim);
+    }
+
+    .top-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 0.75rem;
+    }
+
+    .top-size {
+      font-size: 0.7rem;
+      font-family: monospace;
+      color: var(--accent);
+    }
+
+    /* Bar Chart */
+    .bar-chart {}
+
+    .bar-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+
+    .bar-label {
+      width: 45px;
+      font-size: 0.7rem;
+      color: var(--dim);
+      font-family: monospace;
+    }
+
+    .bar-track {
+      flex: 1;
+      height: 8px;
+      background: var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.3s;
+    }
+
+    .bar-count {
+      width: 35px;
+      text-align: right;
+      font-size: 0.65rem;
+      color: var(--dim);
+    }
+
+    /* Main Viz */
+    .viz {
+      position: relative;
+      background: var(--bg);
+      overflow: hidden;
+    }
+
+    #viz-canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    .viz-hidden {
+      display: none !important;
+    }
+
+    /* Right Panel */
+    .right-panel {
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 12px;
+      font-size: 0.8rem;
+    }
+
+    /* Tooltip */
+    .tooltip {
+      position: fixed;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 0.75rem;
+      pointer-events: none;
+      z-index: 1000;
+      max-width: 280px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      opacity: 0;
+      transition: opacity 0.1s;
+    }
+
+    .tooltip.visible {
+      opacity: 1;
+    }
+
+    .tooltip-title {
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 4px;
+      word-break: break-all;
+    }
+
+    .tooltip-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 1px 0;
+    }
+
+    .tooltip-label {
+      color: var(--dim);
+    }
+
+    /* Breadcrumb */
+    .breadcrumb {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      display: flex;
+      gap: 3px;
+      z-index: 100;
+      flex-wrap: wrap;
+    }
+
+    .crumb {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-size: 0.7rem;
+      cursor: pointer;
+    }
+
+    .crumb:hover {
+      border-color: var(--accent);
+    }
+
+    /* Mini chart */
+    .mini-chart {
+      height: 60px;
+      background: var(--bg);
+      border-radius: 4px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .mini-bar {
+      position: absolute;
+      bottom: 0;
+      background: var(--accent);
+      opacity: 0.6;
+    }
+
+    /* Performance indicator */
+    .perf {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: var(--surface);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.65rem;
+      z-index: 100;
+    }
+
+    .perf.fast {
+      color: var(--success);
+    }
+
+    .perf.slow {
+      color: var(--warning);
+    }
+
+    /* Loading */
+    .loading {
+      position: absolute;
+      inset: 0;
+      background: rgba(13, 17, 23, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+
+    .loading.hidden {
+      display: none;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <header>
+      <div class="logo">⚡ Ultra-Crawler Pro</div>
+      <div class="tabs">
+        <button class="tab active" data-view="treemap">Treemap</button>
+        <button class="tab" data-view="sunburst">Sunburst</button>
+        <button class="tab" data-view="flame">Flame</button>
+        <button class="tab" data-view="graph3d">3D</button>
+      </div>
+      <div class="search"><input type="text" id="search" placeholder="Search files... (⌘K)"></div>
+      <div class="stats">
+        <span><span class="stat-val" id="s-items">0</span> items</span>
+        <span><span class="stat-val" id="s-size">0</span></span>
+        <span><span class="stat-val" id="s-dirs">0</span> folders</span>
+        <span><span class="stat-val" id="s-files">0</span> files</span>
+      </div>
+    </header>
+
+    <aside class="sidebar">
+      <div class="section">
+        <div class="section-title">Quick Crawl</div>
+        <div class="form-row">
+          <select id="mode">
+            <option value="filesystem">📁 Filesystem</option>
+            <option value="web">🌐 Web</option>
+            <option value="s3">☁️ S3</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <input type="text" id="path" value="." placeholder="Path">
+          <input type="number" id="depth" value="5" min="1" max="20" style="width:50px">
+        </div>
+        <button class="btn" id="crawl-btn">⚡ Crawl</button>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Filter by Type</div>
+        <div class="filters" id="filters"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Search Results</div>
+        <div class="file-list" id="results"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">File Extensions</div>
+        <div class="bar-chart" id="ext-chart"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Console</div>
+        <div id="console"
+          style="background:var(--bg);padding:6px;border-radius:4px;font-family:monospace;font-size:0.65rem;max-height:80px;overflow-y:auto;">
+          Ready</div>
+      </div>
+    </aside>
+
+    <main class="viz">
+      <canvas id="viz-canvas"></canvas>
+      <div class="breadcrumb" id="breadcrumb"></div>
+      <div class="perf" id="perf"></div>
+      <div class="loading hidden" id="loading">
+        <div class="spinner"></div>
+      </div>
+    </main>
+
+    <aside class="right-panel">
+      <div class="section">
+        <div class="section-title">Analytics</div>
+        <div class="analytics">
+          <div class="metric">
+            <div class="metric-value" id="m-avg">0</div>
+            <div class="metric-label">Avg Size</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="m-median">0</div>
+            <div class="metric-label">Median</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="m-depth">0</div>
+            <div class="metric-label">Max Depth</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="m-types">0</div>
+            <div class="metric-label">File Types</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">📊 Size Distribution</div>
+        <div class="mini-chart" id="size-dist"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">🔥 Largest Files</div>
+        <div id="top-files"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">📁 Largest Folders</div>
+        <div id="top-dirs"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">🕒 Recently Modified</div>
+        <div id="recent-files"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">⚠️ Duplicates</div>
+        <div id="duplicates"></div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="tooltip" id="tooltip"></div>
+
+  <script>
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PERFORMANCE-OPTIMIZED ULTRA-CRAWLER PRO
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    const $ = id => document.getElementById(id);
+    const formatBytes = b => { if (!b) return '0 B'; const k = 1024, s = ['B','KB','MB','GB','TB']; const i = Math.floor(Math.log(b)/Math.log(k)); return (b/Math.pow(k,i)).toFixed(1)+' '+s[i]; };
+    const formatNum = n => n?.toLocaleString() || '0';
+
+    const COLORS = {
+      '.js': '#f0db4f', '.ts': '#3178c6', '.jsx': '#61dafb', '.tsx': '#3178c6',
+      '.py': '#3572A5', '.rb': '#CC342D', '.go': '#00ADD8', '.rs': '#dea584',
+      '.html': '#e34c26', '.css': '#563d7c', '.scss': '#c6538c',
+      '.json': '#3fb950', '.yaml': '#cb171e', '.yml': '#cb171e', '.xml': '#f80',
+      '.md': '#f78166', '.txt': '#8b949e',
+      '.jpg': '#d63aff', '.png': '#d63aff', '.gif': '#d63aff', '.svg': '#ffb13b',
+      '.mp4': '#ff6b6b', '.mp3': '#1ed760',
+      '.pdf': '#f40f02', '.zip': '#ffc107',
+      'directory': '#58a6ff', 'default': '#8b949e'
+    };
+    const getColor = (type, ext) => COLORS[ext] || COLORS[type] || COLORS.default;
+    const getIcon = (type, ext) => {
+      if (type === 'directory') return '📁';
+      const icons = { '.js':'📜', '.ts':'📜', '.py':'🐍', '.html':'🌐', '.css':'🎨', '.json':'📋', '.md':'📝', '.jpg':'🖼️', '.png':'🖼️', '.pdf':'📕', '.mp4':'🎬', '.mp3':'🎵', '.zip':'📦' };
+      return icons[ext] || '📄';
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // STATE
+    // ═══════════════════════════════════════════════════════════════════════════
+    let data = null, flatNodes = [], hierarchy = null, currentView = 'treemap', currentRoot = null;
+    let activeFilters = new Set(), graph3D = null;
+    const canvas = $('viz-canvas'), ctx = canvas.getContext('2d');
+    let renderCache = new Map(), layoutCache = null;
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CANVAS RENDERER (Much faster than SVG for large datasets)
+    // ═══════════════════════════════════════════════════════════════════════════
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width * devicePixelRatio;
+      canvas.height = rect.height * devicePixelRatio;
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = rect.height + 'px';
+      ctx.scale(devicePixelRatio, devicePixelRatio);
+    }
+
+    function renderTreemapCanvas(root) {
+      const start = performance.now();
+      const w = canvas.width / devicePixelRatio, h = canvas.height / devicePixelRatio;
+      ctx.clearRect(0, 0, w, h);
+
+      const d3Root = d3.hierarchy(root).sum(d => d.size || 1).sort((a,b) => b.value - a.value);
+      d3.treemap().size([w, h]).paddingOuter(2).paddingTop(16).paddingInner(1).round(true)(d3Root);
+
+      layoutCache = d3Root.descendants().filter(d => d.depth > 0 && d.depth <= 4);
+
+      // Batch render with requestAnimationFrame chunks
+      const renderBatch = (nodes, idx = 0) => {
+        const batchSize = 500;
+        const end = Math.min(idx + batchSize, nodes.length);
+
+        for (let i = idx; i < end; i++) {
+          const d = nodes[i];
+          const w = d.x1 - d.x0, h = d.y1 - d.y0;
+          if (w < 1 || h < 1) continue;
+
+          ctx.fillStyle = getColor(d.data.type, d.data.ext);
+          ctx.globalAlpha = d.children ? 0.6 : 0.85;
+          ctx.fillRect(d.x0, d.y0, w, h);
+
+          // Labels for visible nodes
+          if (w > 40 && h > 14) {
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = '#fff';
+            ctx.font = '10px -apple-system, sans-serif';
+            const label = (d.children ? '📁 ' : '') + d.data.name;
+            const maxChars = Math.floor((w - 8) / 6);
+            ctx.fillText(label.slice(0, maxChars), d.x0 + 4, d.y0 + 12);
+
+            // Size label
+            if (h > 26 && !d.children) {
+              ctx.fillStyle = 'rgba(255,255,255,0.7)';
+              ctx.font = '9px monospace';
+              ctx.fillText(formatBytes(d.value), d.x0 + 4, d.y0 + 24);
+            }
+          }
+        }
+        ctx.globalAlpha = 1;
+
+        if (end < nodes.length) {
+          requestAnimationFrame(() => renderBatch(nodes, end));
+        } else {
+          showPerf(performance.now() - start, nodes.length);
+        }
+      };
+
+      renderBatch(layoutCache);
+      currentRoot = root;
+    }
+
+    function renderSunburstCanvas(root) {
+      const start = performance.now();
+      const w = canvas.width / devicePixelRatio, h = canvas.height / devicePixelRatio;
+      const radius = Math.min(w, h) / 2 - 10;
+      const cx = w / 2, cy = h / 2;
+
+      ctx.clearRect(0, 0, w, h);
+
+      const d3Root = d3.hierarchy(root).sum(d => d.size || 1).sort((a,b) => b.value - a.value);
+      d3.partition().size([2 * Math.PI, radius])(d3Root);
+
+      layoutCache = d3Root.descendants().filter(d => d.depth > 0 && d.depth <= 6);
+
+      for (const d of layoutCache) {
+        const innerR = d.y0, outerR = d.y1;
+        ctx.beginPath();
+        ctx.arc(cx, cy, outerR, d.x0 - Math.PI/2, d.x1 - Math.PI/2);
+        ctx.arc(cx, cy, innerR, d.x1 - Math.PI/2, d.x0 - Math.PI/2, true);
+        ctx.closePath();
+        ctx.fillStyle = getColor(d.data.type, d.data.ext);
+        ctx.globalAlpha = d.children ? 0.7 : 0.9;
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+
+      // Center
+      ctx.beginPath();
+      ctx.arc(cx, cy, d3Root.y0 || 20, 0, 2 * Math.PI);
+      ctx.fillStyle = '#161b22';
+      ctx.fill();
+      ctx.fillStyle = '#8b949e';
+      ctx.font = '11px -apple-system';
+      ctx.textAlign = 'center';
+      ctx.fillText(root.name || 'Root', cx, cy + 4);
+      ctx.textAlign = 'left';
+
+      showPerf(performance.now() - start, layoutCache.length);
+    }
+
+    function renderFlameCanvas(root) {
+      const start = performance.now();
+      const w = canvas.width / devicePixelRat io, h = canvas.height / devicePixelRatio;
+
+      ctx.clearRect(0, 0, w, h);
+
+      const d3Root = d3.hierarchy(root).sum(d => d.size || 1).sort((a,b) => b.value - a.value);
+      d3.partition().size([w, h]).padding(1)(d3Root);
+
+      layoutCache = d3Root.descendants().filter(d => d.depth <= 8);
+
+      for (const d of layoutCache) {
+        const bw = d.x1 - d.x0, bh = d.y1 - d.y0;
+        if (bw < 1) continue;
+
+        ctx.fillStyle = getColor(d.data.type, d.data.ext);
+        ctx.globalAlpha = d.children ? 0.7 : 0.9;
+        ctx.fillRect(d.x0, d.y0, bw, bh);
+
+        if (bw > 30) {
+          ctx.globalAlpha = 1;
+           ctx.fillStyle = '#fff';
+          ctx.font = '9px -apple-system';
+          ctx.fillText(d.data.name.slice(0, Math.floor(bw/5)), d.x0 + 2, d.y0 + 10);
+        }
+      }
+      ctx.globalAlpha = 1;
+      showPerf(performance.now() - start, layoutCache.length);
+    }
+
+    function render3D(root) {
+      const el = canvas.parentElement;
+      canvas.style.display = 'none';
+
+      let container = $('graph3d-container');
+      if (!container) {
+        container = document.createElement('div');
+        container.id = 'graph3d-container';
+        container.style.cssText = 'position:absolute;inset:0;';
+        el.appendChild(container);
+      }
+      container.innerHTML = '';
+      container.style.display = 'block';
+
+      const nodes = [], links = [];
+      let id = 0;
+      const traverse = (node, parentId = null) => {
+        const nid = id++;
+        nodes.push({ id: nid, name: node.name, type: node.type, size: node.size, ext: node.ext, color: getColor(node.type, node.ext), val: Math.log10(Math.max(node.size||1,1))+1 });
+        if (parentId !== null) links.push({ source: parentId, target: nid });
+        (node.children || []).slice(0, 300).forEach(c => traverse(c, nid));
+      };
+      traverse(root);
+
+      graph3D = ForceGraph3D()(container)
+        .graphData({ nodes, links })
+        .nodeLabel(n => `${getIcon(n.type,n.ext)} ${n.name}\n${formatBytes(n.size)}`)
+        .nodeColor(n => n.color)
+        .nodeVal(n => n.val)
+        .linkColor(() => 'rgba(88,166,255,0.2)')
+        .linkWidth(0.3)
+        .backgroundColor('#0d1117');
+    }
+
+    function showPerf(ms, count) {
+      const perf = $('perf');
+      perf.textContent = `${ms.toFixed(1)}ms • ${formatNum(count)} nodes`;
+      perf.className = 'perf ' + (ms < 100 ? 'fast' : 'slow');
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ANALYTICS
+    // ═══════════════════════════════════════════════════════════════════════════
+    function computeAnalytics(nodes) {
+      const files = nodes.filter(n => n.type !== 'directory' && n.size > 0);
+      const dirs = nodes.filter(n => n.type === 'directory');
+      const sizes = files.map(f => f.size).sort((a,b) => a - b);
+      const totalSize = sizes.reduce((a,b) => a + b, 0);
+
+      // Stats
+      $('s-items').textContent = formatNum(nodes.length);
+      $('s-size').textContent = formatBytes(totalSize);
+      $('s-dirs').textContent = formatNum(dirs.length);
+      $('s-files').textContent = formatNum(files.length);
+
+      // Metrics
+      $('m-avg').textContent = formatBytes(totalSize / files.length || 0);
+      $('m-median').textContent = formatBytes(sizes[Math.floor(sizes.length/2)] || 0);
+      $('m-depth').textContent = Math.max(...nodes.map(n => n.depth || 0), 0);
+      const exts = new Set(files.map(f => f.ext).filter(Boolean));
+      $('m-types').textContent = exts.size;
+
+      // Extension chart
+      const extCounts = {};
+      files.forEach(f => { if (f.ext) extCounts[f.ext] = (extCounts[f.ext]||0) + 1; });
+      const sorted = Object.entries(extCounts).sort((a,b) => b[1] - a[1]).slice(0, 10);
+      const maxCount = sorted[0]?.[1] || 1;
+
+      $('ext-chart').innerHTML = sorted.map(([ext, count]) => `
+        <div class="bar-row">
+          <span class="bar-label">${ext}</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${count/maxCount*100}%;background:${COLORS[ext]||COLORS.default}"></div></div>
+          <span class="bar-count">${formatNum(count)}</span>
+        </div>
+      `).join('');
+
+      // Filters
+      $('filters').innerHTML = Array.from(exts).slice(0, 12).map(ext => `
+        <div class="filter-chip${activeFilters.has(ext) ? ' active' : ''}" data-ext="${ext}">
+          <span class="dot" style="background:${COLORS[ext]||COLORS.default}"></span>${ext}
+        </div>
+      `).join('');
+
+      // Size distribution
+      const buckets = new Array(20).fi l l(0);
+        const maxSize = Math.max(...sizes, 1);
+      files.forEach(f => { const i = Math.min(19, Math.floor(f.size / maxSize * 19)); buckets[i]++; });
+      const maxBucket = Math.max(...buckets, 1);
+      $('size-dist').innerHTML = buckets.map((c, i) =>
+        `<div class="mini-bar" style="left:${i*5}%;width:4%;height:${c/maxBucket*100}%"></div>`
+      ).join('');
+
+      // Top files
+      const topFiles = [...files].sort((a,b) => b.size - a.size).slice(0, 8);
+      $('top-files').innerHTML = topFiles.map((f, i) => `
+        <div class="top-file"><span class="top-rank">${i+1}</span><span class="top-name" title="${f.path}">${f.name}</span><span class="top-size">${formatBytes(f.size)}</span></div>
+      `).join('');
+
+      // Top dirs
+      const topDirs = [...dirs].filter(d => d.size > 0).sort((a,b) => b.size - a.size).slice(0, 6);
+      $('top-dirs').innerHTML = topDirs.map((d, i) => `
+        <div class="top-file"><span class="top-rank">${i+1}</span><span class="top-name" title="${d.path}">📁 ${d.name}</span><span class="top-size">${formatBytes(d.size)}</span></div>
+      `).join('');
+
+      // Recent files
+      const recent = [...files].filter(f => f.modifiedAt).sort((a,b) => (b.modifiedAt||0) - (a.modifiedAt||0)).slice(0, 5);
+      $('recent-files').innerHTML = recent.map(f => {
+        const ago = Date.now() - (f.modifiedAt||0);
+        const when = ago < 3600000 ? Math.floor(ago/60000)+'m' : ago < 86400000 ? Math.floor(ago/3600000)+'h' : Math.floor(ago/86400000)+'d';
+        return `<div class="top-file"><span class="top-name">${f.name}</span><span class="top-size">${when} ago</span></div>`;
+      }).join('') || '<div style="color:var(--dim)">No recent data</div>';
+
+      // Duplicates by name
+      const nameCounts = {};
+      files.forEach(f => { nameCounts[f.name] = (nameCounts[f.name]||0) + 1; });
+      const dupes = Object.entries(nameCounts).filter(([,c]) => c > 1).sort((a,b) => b[1] - a[1]).slice(0, 5);
+      $('duplicates').innerHTML = dupes.map(([name, count]) =>
+        `<div class="top-file"><span class="top-name">${name}</span><span class="top-size">×${count}</span></div>`
+      ).join('') || '<div style="color:var(--dim)">No duplicates</div>';
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // INTERACTION
+    // ═══════════════════════════════════════════════════════════════════════════
+    const tooltip = $('tooltip');
+    let hoveredNode = null;
+
+    canvas.addEventListener('mousemove', e => {
+      if (!layoutCache) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left, y = e.clientY - rect.top;
+
+      hoveredNode = null;
+      for (const d of layoutCache) {
+        if (x >= d.x0 && x <= d.x1 && y >= d.y0 && y <= d.y1) {
+          hoveredNode = d;
+          break;
+        }
+      }
+
+      if (hoveredNode) {
+        const n = hoveredNode.data;
+        tooltip.innerHTML = `
+          <div class="tooltip-title">${getIcon(n.type, n.ext)} ${n.name}</div>
+          <div class="tooltip-row"><span class="tooltip-label">Type</span><span>${n.type}</span></div>
+          <div class="tooltip-row"><span class="tooltip-label">Size</span><span>${formatBytes(hoveredNode.value || n.size)}</span></div>
+          ${n.ext ? `<div class="tooltip-row"><span class="tooltip-label">Ext</span><span>${n.ext}</span></div>` : ''}
+          ${hoveredNode.children ? `<div class="tooltip-row"><span class="tooltip-label">Items</span><span>${hoveredNode.children.length}</span></div>` : ''}
+        `;
+        tooltip.style.left = (e.pageX + 12) + 'px';
+        tooltip.style.top = (e.pageY + 12) + 'px';
+        tooltip.classList.add('visible');
+        canvas.style.cursor = 'pointer';
+      } else {
+        tooltip.classList.remove('visible');
+        canvas.style.cursor = 'default';
+      }
+    });
+
+    canvas.addEventListener('click', () => {
+      if (hoveredNode?.children && currentView === 'treemap') {
+        zoomTo(hoveredNode.data);
+      }
+    });
+
+    canvas.addEventListener('mouseleave', () => tooltip.classList.remove('visible'));
+
+    function zoomTo(node) {
+      updateBreadcrumb(node);
+      renderTreemapCanvas(node);
+    }
+
+    function updateBreadcrumb(node) {
+      const crumbs = [];
+      let current = node;
+      while (current) {
+        crumbs.unshift(current);
+        current = current.parent;
+      }
+      $('breadcrumb').innerHTML = `<div class="crumb" onclick="resetView()">🏠</div>` +
+        crumbs.slice(0, 5).map((n, i) => `<div class="crumb">${n.name?.slice(0,15) || 'root'}</div>`).join('');
+    }
+
+    window.resetView = () => { if (hierarchy) switchView(currentView); };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // SEARCH (Debounced)
+    // ═══════════════════════════════════════════════════════════════════════════
+    let searchTimeout;
+    $('search').addEventListener('input', e => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => search(e.target.value), 150);
+    });
+
+    function search(query) {
+      if (!query || !flatNodes.length) { $('results').innerHTML = ''; return; }
+      const q = query.toLowerCase();
+      const matches = flatNodes.filter(n => n.name?.toLowerCase().includes(q)).slice(0, 25);
+      $('results').innerHTML = matches.map(n => `
+        <div class="file-item"><span class="file-icon">${getIcon(n.type, n.ext)}</span><span class="file-name">${n.name}</span><span class="file-size">${formatBytes(n.size)}</span></div>
+      `).join('');
+    }
+
+    // Keyboard shortcut
+    document.addEventListener('keydown', e => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); $('search').focus(); }
+      if (e.key === 'Escape') { tooltip.classList.remove('visible'); $('search').blur(); }
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // FILTERS 
+     // ══ ═ ════════════════════════════════════════════════════════════════════════
+    $('filters').addEventListener('click', e => {
+      const chip = e.target.closest('.filter-chip');
+      if (!chip) return;
+      const ext = chip.dataset.ext;
+      if (activeFilters.has(ext)) activeFilters.delete(ext);
+      else activeFilters.add(ext);
+      chip.classList.toggle('active');
+      applyFilters();
+    });
+
+    function applyFilters() {
+      if (!hierarchy) return;
+      if (activeFilters.size === 0) {
+        switchView(currentView);
+        return;
+      }
+      // Filter hierarchy
+      const filterNode = node => {
+        if (node.type !== 'directory') {
+          return activeFilters.has(node.ext) ? { ...node } : null;
+        }
+        const children = (node.children || []).map(filterNode).filter(Boolean);
+        if (children.length === 0) return null;
+        return { ...node, children };
+      };
+      const filtered = filterNode(hierarchy);
+      if (filtered) {
+        if (currentView === 'treemap') renderTreemapCanvas(filtered);
+        else if (currentView === 'sunburst') renderSunburstCanvas(filtered);
+        else if (currentView === 'flame') renderFlameCanvas(filtered);
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // VIEW SWITCHING
+    // ═══════════════════════════════════════════════════════════════════════════
+    function switchView(view) {
+      currentView = view;
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === view));
+
+      const container3d = $('graph3d-container');
+      if (container3d) container3d.style.display = 'none';
+      canvas.style.display = 'block';
+
+      $('breadcrumb').innerHTML = '<div class="crumb">🏠</div>';
+
+      if (!hierarchy) return;
+
+      resizeCanvas();
+      switch (view) {
+        case 'treemap': renderTreemapCanvas(hierarchy); break;
+        case 'sunburst': renderSunburstCanvas(hierarchy); break;
+        case 'flame': renderFlameCanvas(hierarchy); break;
+        case 'graph3d': render3D(hierarchy); break;
+      }
+    }
+
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => switchView(tab.dataset.view));
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // WEBSOCKET & DATA LOADING
+    // ═══════════════════════════════════════════════════════════════════════════
+    let ws = null;
+
+    function log(msg) {
+      const el = $('console');
+      el.innerHTML += `<div>${msg}</div>`;
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function connectWS() {
+      ws = new WebSocket(`ws://${location.host}`);
+      ws.onmessage = e => {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'log') log(msg.data);
+        else if (msg.type === 'error') log(`❌ ${msg.data}`);
+        else if (msg.type === 'complete') {
+          log('✅ Done!');
+          $('crawl-btn').disabled = false;
+          $('loading').classList.add('hidden');
+          if (msg.graph) loadData(msg.graph);
+        }
+      };
+      ws.onclose = () => setTimeout(connectWS, 2000);
+    }
+
+    async function loadData(graph = null) {
+      $('loading').classList.remove('hidden');
+      try {
+        if (!graph) {
+          const res = await fetch('/api/graph');
+          graph = await res.json();
+        }
+        if (graph?.hierarchy?.[0]) {
+          hierarchy = graph.hierarchy[0];
+          flatNodes = flattenHierarchy(hierarchy);
+          computeAnalytics(flatNodes);
+          switchView(currentView);
+        }
+      } catch (err) {
+        log('No data yet');
+      }
+      $('loading').classList.add('hidden');
+    }
+
+    function flattenHierarchy(node, arr = []) {
+      arr.push(node);
+      (node.children || []).forEach(c => flattenHierarchy(c, arr));
+      return arr;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CRAWL
+    // ═══════════════════════════════════════════════════════════════════════════
+    $('crawl-btn').addEventListener('click', () => {
+      const msg = { type: 'crawl', mode: $('mode').value, depth: $('depth').value, path: $('path').value };
+      ws.send(JSON.stringify(msg));
+      $('crawl-btn').disabled = true;
+      $('loading').classList.remove('hidden');
+      log('⚡ Crawling...');
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // INIT
+    // ═══════════════════════════════════════════════════════════════════════════
+    window.addEventListener('resize', () => { resizeCanvas(); if (hierarchy) switchView(currentView); });
+    resizeCanvas();
+    connectWS();
+    loadData();
+  </script>
+</body>
+
+</html>
