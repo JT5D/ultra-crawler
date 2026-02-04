@@ -15,29 +15,26 @@
   <!-- PeerJS for multiplayer -->
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
-    /* VisionOS / MRTK Theme - REFINED for Usability */
+    /* VisionOS Authentic Theme */
     :root {
-      --bg: #050505;
-      /* Deep black */
-      /* Subtle Glass - mostly solid for readability */
-      --glass: rgba(22, 27, 34, 0.95);
-      --glass-hover: rgba(40, 45, 55, 1);
-      --glass-border: rgba(255, 255, 255, 0.15);
-      /* Accents */
-      --accent: #0a84ff;
-      /* Clearer Blue */
-      --accent-glow: rgba(10, 132, 255, 0.3);
-      --accent-secondary: #ff453a;
+      /* Physics-based Materials */
+      --glass-base: rgba(30, 30, 35, 0.45);
+      --glass-border: rgba(255, 255, 255, 0.2);
+      --glass-highlight: rgba(255, 255, 255, 0.1);
+      --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+
+      /* Colors */
+      --bg: #000000;
+      /* Vibrant System Blue */
+      --accent: #007AFF;
+      --accent-grad: linear-gradient(180deg, #3395ff, #007aff);
       --text: #ffffff;
-      --text-dim: #98989d;
-      /* Higher contrast grey */
-      /* Success/Warning */
-      --success: #32d74b;
-      --warning: #ff9f0a;
-      /* Radius */
-      --radius-panel: 16px;
-      /* Tighter radius */
-      --radius-btn: 12px;
+      --text-secondary: rgba(235, 235, 245, 0.6);
+
+      /* Geometry */
+      --radius-window: 32px;
+      --radius-control: 24px;
+      --radius-pill: 9999px;
     }
 
     * {
@@ -47,59 +44,57 @@
     }
 
     body {
-      background: #000000;
-      /* Solid back for perf & contrast */
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", Helvetica, Arial, sans-serif;
+      /* Immersive Background */
+      background: radial-gradient(circle at 50% 120%, #1c1c1e, #000000 60%);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", Helvetica, sans-serif;
       color: var(--text);
       height: 100vh;
       overflow: hidden;
-      letter-spacing: -0.01em;
-      line-height: 1.5;
+      letter-spacing: -0.015em;
+      -webkit-font-smoothing: antialiased;
     }
 
-    /* Layout - Full Width Use */
+    /* Spatial Layout */
     .app {
       display: grid;
-      grid-template-columns: 280px 1fr 320px;
+      grid-template-columns: 280px 1fr 340px;
       grid-template-rows: 64px 1fr;
       height: 100vh;
-      gap: 12px;
-      /* Tighter gap */
-      padding: 12px;
+      gap: 20px;
+      padding: 24px;
     }
 
-    /* High Contrast Panels */
+    /* Glass Material Mixin */
     .glass-panel {
-      background: var(--glass);
-      backdrop-filter: blur(40px);
-      /* Heavier blur helps readability if transparent */
-      -webkit-backdrop-filter: blur(40px);
+      background: var(--glass-base);
+      -webkit-backdrop-filter: blur(40px) saturate(180%);
+      backdrop-filter: blur(40px) saturate(180%);
       border: 1px solid var(--glass-border);
-      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
-      /* Deeper shadow */
-      border-radius: var(--radius-panel);
+      box-shadow: var(--glass-shadow), inset 0 0 0 1px var(--glass-highlight);
+      border-radius: var(--radius-window);
     }
 
-    /* Header - Clean Bar */
+    /* Ornament Bar (Header) */
     header {
       grid-column: 1 / -1;
       display: flex;
       align-items: center;
-      padding: 0 20px;
-      gap: 16px;
+      padding: 0 24px;
+      gap: 20px;
       z-index: 100;
-      background: rgba(22, 27, 34, 0.95);
-      /* Match glass var */
+      background: transparent !important;
+      /* Let glass-panel handle it */
     }
 
     header.glass-panel {
-      /* Merge panel styles */
-      background: var(--glass);
-      backdrop-filter: blur(40px);
-      -webkit-backdrop-filter: blur(40px);
-      border: 1px solid var(--glass-border);
-      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
-      border-radius: var(--radius-panel);
+      background: rgba(30, 30, 35, 0.6);
+      /* Slightly denser for header */
+      border-radius: var(--radius-pill);
+      /* Pill shape for ornament */
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+      margin: 0 40px;
+      /* Float/inset from edges */
+      width: calc(100% - 80px);
     }
 
     .logo {
@@ -112,40 +107,40 @@
       letter-spacing: -0.03em;
     }
 
-    /* Tabs: Floating Segmented Control */
+    /* Ornament Control (Tabs) */
     .tabs {
       display: flex;
-      background: rgba(0, 0, 0, 0.3);
+      background: rgba(0, 0, 0, 0.2);
       padding: 4px;
-      border-radius: 20px;
-      gap: 2px;
-      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-pill);
+      gap: 4px;
+      border: 1px solid var(--glass-highlight);
     }
 
     .tab {
-      padding: 6px 16px;
+      padding: 8px 16px;
       border: none;
       background: transparent;
-      color: var(--text-dim);
-      border-radius: 16px;
+      color: var(--text-secondary);
+      border-radius: var(--radius-pill);
       cursor: pointer;
-      font-size: 0.8rem;
+      font-size: 13px;
       font-weight: 500;
-      transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+      transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
     }
 
     .tab:hover {
+      background: var(--glass-highlight);
       color: var(--text);
-      background: rgba(255, 255, 255, 0.05);
     }
 
     .tab.active {
-      background: var(--accent);
+      background: var(--glass-highlight);
       color: #fff;
-      box-shadow: 0 2px 10px var(--accent-glow);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
 
-    /* Search Input: Glass Pill */
+    /* Search Field (Glass Pill) */
     .search {
       flex: 1;
       max-width: 400px;
@@ -154,43 +149,45 @@
 
     .search input {
       width: 100%;
-      padding: 10px 16px 10px 40px;
-      border: 1px solid var(--glass-border);
-      background: rgba(0, 0, 0, 0.4);
+      padding: 10px 16px 10px 42px;
+      border: 1px solid transparent;
+      background: rgba(120, 120, 128, 0.2);
+      /* iOS/VisionOS standard fill */
       color: var(--text);
-      border-radius: 24px;
-      font-size: 0.9rem;
+      border-radius: 12px;
+      font-size: 15px;
       transition: all 0.2s;
     }
 
     .search input:focus {
       outline: none;
+      background: rgba(120, 120, 128, 0.3);
       border-color: var(--accent);
-      box-shadow: 0 0 0 2px var(--accent-glow);
-      background: rgba(0, 0, 0, 0.6);
+      box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.3);
     }
 
     .search::before {
       content: '🔍';
       position: absolute;
-      left: 14px;
+      left: 12px;
       top: 50%;
       transform: translateY(-50%);
-      font-size: 0.9rem;
-      opacity: 0.6;
+      font-size: 14px;
+      opacity: 0.5;
     }
 
-    /* Voice Button */
+    /* Circular IconButton (Voice) */
     .voice-btn {
       position: absolute;
       right: 6px;
       top: 50%;
       transform: translateY(-50%);
-      background: rgba(255, 255, 255, 0.1);
+      background: transparent;
+      color: var(--text-secondary);
       border: none;
       cursor: pointer;
-      width: 32px;
-      height: 32px;
+      width: 28px;
+      height: 28px;
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -199,47 +196,43 @@
     }
 
     .voice-btn:hover {
-      background: rgba(255, 255, 255, 0.2);
-      transform: translateY(-50%) scale(1.05);
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text);
     }
 
     .voice-btn.listening {
-      background: var(--accent-secondary);
-      box-shadow: 0 0 15px rgba(255, 59, 48, 0.5);
+      color: var(--accent-secondary);
       animation: pulse 1.5s infinite;
     }
 
-    @keyframes pulse {
-      0% {
-        transform: translateY(-50%) scale(1);
-        opacity: 1;
-      }
-
-      50% {
-        transform: translateY(-50%) scale(1.2);
-        opacity: 0.8;
-      }
-
-      100% {
-        transform: translateY(-50%) scale(1);
-        opacity: 1;
-      }
-    }
-
-    /* Action Buttons (Export, AR, Multi) */
-    .btn-glass {
-      background: rgba(255, 255, 255, 0.05);
+    /* Platter Buttons (Export, AR, Multi) */
+    .btn-glass,
+    .export-btn,
+    .ar-btn,
+    .mp-btn {
+      background: rgba(255, 255, 255, 0.1);
+      /* Platter fill */
       color: var(--text);
-      border: 1px solid var(--glass-border);
-      padding: 8px 16px;
-      border-radius: var(--radius-btn);
+      border: 1px solid transparent;
+      /* No border for platters usually */
+      padding: 10px 20px;
+      border-radius: var(--radius-pill);
       cursor: pointer;
-      font-size: 0.8rem;
+      font-size: 13px;
       font-weight: 600;
-      transition: all 0.2s;
+      transition: all 0.2s ease-out;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
+      height: 36px;
+    }
+
+    .btn-glass:hover,
+    .export-btn:hover,
+    .ar-btn:hover,
+    .mp-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: scale(1.02);
     }
 
     .btn-glass:hover {
